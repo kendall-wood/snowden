@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document & Exit Plotter</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+        }
+        
+        #container {
+            display: flex;
+            gap: 20px;
+        }
+        
+        #canvas-wrapper {
+            position: relative;
+            border: 2px solid #00ff00;
+            max-width: 1000px;
+            max-height: 700px;
+            overflow: auto;
+        }
+        
+        canvas {
+            display: block;
+            cursor: crosshair;
+            transform-origin: 0 0;
+        }
+        
+        #controls {
+            flex: 1;
+            background-color: #000;
+            padding: 20px;
+            border: 2px solid #00ff00;
+            max-width: 400px;
+        }
+        
+        h1 {
+            color: #00ff00;
+            margin-top: 0;
+        }
+        
+        button {
+            background-color: #003300;
+            color: #00ff00;
+            border: 2px solid #00ff00;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        
+        button:hover {
+            background-color: #005500;
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        button.active {
+            background-color: #006600;
+            border-color: #ffff00;
+        }
+        
+        #output {
+            background-color: #000;
+            border: 1px solid #00ff00;
+            padding: 10px;
+            margin-top: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+        
+        .item-info {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #00ff00;
+        }
+        
+        .instructions {
+            border: 1px solid #ffff00;
+            padding: 10px;
+            margin: 10px 0;
+            color: #ffff00;
+        }
+        
+        .complete {
+            color: #00ff00;
+        }
+        
+        .incomplete {
+            color: #ff0000;
+        }
+    </style>
+</head>
+<body>
+    <h1>Document & Exit Plotter - Snowden Game</h1>
+    
+    <div id="container">
+        <div id="canvas-wrapper">
+            <canvas id="canvas"></canvas>
+        </div>
+        
+        <div id="controls">
+            <div class="instructions">
+                <strong>INSTRUCTIONS:</strong><br>
+                1. Select level to edit<br>
+                2. Click "Place Document" button<br>
+                3. Click on map to place (3 total)<br>
+                4. Click "Place Exit Door" button<br>
+                5. Click on map to place exit<br>
+                6. Click "Generate Code" to get coordinates
+            </div>
+            
+            <div style="border: 1px solid #ffff00; padding: 10px; margin: 10px 0; background-color: #222;">
+                <strong style="color: #ffff00;">LEVEL SELECT:</strong><br>
+                <button id="level1-btn" style="background-color: #003300; border-color: #ffff00; color: #ffff00;">Level 1</button>
+                <button id="level2-btn">Level 2</button>
+                <button id="level3-btn">Level 3</button>
+            </div>
+            
+            <div id="placement-mode" class="item-info">
+                <strong>Placement Mode:</strong><br>
+                <button id="doc-mode-btn" class="active">Place Document</button>
+                <button id="exit-mode-btn">Place Exit Door</button>
+            </div>
+            
+            <div id="status-info" class="item-info">
+                <strong>Status:</strong><br>
+                Documents: <span id="doc-count" class="incomplete">0/3</span><br>
+                Exit Door: <span id="exit-count" class="incomplete">0/1</span>
+            </div>
+            
+            <div style="border: 1px solid #00ff00; padding: 10px; margin-bottom: 10px;">
+                <strong>Zoom:</strong><br>
+                <button id="zoom-out-btn">Zoom Out (-)</button>
+                <button id="zoom-in-btn">Zoom In (+)</button>
+                <button id="fit-btn">Fit to Screen</button>
+                <br><span id="zoom-level">25%</span>
+            </div>
+            
+            <button id="undo-btn">Undo Last Placement</button>
+            <button id="clear-btn">Clear All</button>
+            <br><br>
+            <button id="generate-btn" disabled>Generate Code</button>
+            
+            <div id="output"></div>
+        </div>
+    </div>
+    
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        
+        // Store document and exit positions
+        let documents = [];
+        let exitDoor = null;
+        let placementMode = 'document'; // 'document' or 'exit'
+        let zoomLevel = 0.25;  // Start at 25% zoom
+        
+        // Level configuration
+        let currentLevel = 1;
+        const levelMaps = {
+            1: 'assets/lvl-1-map.png',
+            2: 'assets/lvl-2-map.png',
+            3: 'assets/lvl-3-map.png'
+        };
+        
+        // Load the map PNG for current level
+        img.src = levelMaps[currentLevel];
+        
+        img.onerror = function() {
+            alert('Error loading image! Make sure you open this file via the local server at http://127.0.0.1:8000/document-plotter-tool.html');
+            console.error('Failed to load: assets/lvl-1-map.png');
+        };
+        img.onload = function() {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            applyZoom();
+            redraw();
+        };
+        
+        // Apply zoom transform
+        function applyZoom() {
+            canvas.style.transform = `scale(${zoomLevel})`;
+            document.getElementById('zoom-level').textContent = Math.round(zoomLevel * 100) + '%';
+        }
+        
+        // Click handler
+        canvas.addEventListener('click', function(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = Math.round((e.clientX - rect.left) * scaleX);
+            const y = Math.round((e.clientY - rect.top) * scaleY);
+            
+            console.log(`Clicked at: (${x}, ${y})`);
+            
+            if (placementMode === 'document') {
+                if (documents.length < 3) {
+                    documents.push({x, y});
+                    console.log(`Document ${documents.length} placed at (${x}, ${y})`);
+                } else {
+                    alert('Already placed 3 documents! Use "Undo" to remove one.');
+                }
+            } else if (placementMode === 'exit') {
+                exitDoor = {x, y};
+                console.log(`Exit door placed at (${x}, ${y})`);
+            }
+            
+            updateUI();
+            redraw();
+        });
+        
+        // Redraw canvas
+        function redraw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+            
+            // Scale sizes based on zoom for visibility
+            const docSize = 30 / zoomLevel;  // Documents slightly smaller than player (41px)
+            const exitSize = 35 / zoomLevel; // Exit door slightly larger
+            const fontSize = 25 / zoomLevel;
+            const lineWidth = 3 / zoomLevel;
+            
+            // Draw documents (green with numbers)
+            documents.forEach((doc, index) => {
+                // Draw white outline
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(doc.x, doc.y, docSize, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw green center
+                ctx.fillStyle = '#00ff00';
+                ctx.beginPath();
+                ctx.arc(doc.x, doc.y, docSize * 0.85, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw document number
+                ctx.fillStyle = '#000';
+                ctx.font = `bold ${fontSize}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(`D${index + 1}`, doc.x, doc.y);
+            });
+            
+            // Draw exit door (orange rectangle)
+            if (exitDoor) {
+                // Draw white outline
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(exitDoor.x - exitSize, exitDoor.y - exitSize, exitSize * 2, exitSize * 2);
+                
+                // Draw orange center
+                ctx.fillStyle = '#ff8800';
+                ctx.fillRect(exitDoor.x - exitSize * 0.85, exitDoor.y - exitSize * 0.85, exitSize * 1.7, exitSize * 1.7);
+                
+                // Draw "E" label
+                ctx.fillStyle = '#000';
+                ctx.font = `bold ${fontSize}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('E', exitDoor.x, exitDoor.y);
+            }
+        }
+        
+        // Update UI
+        function updateUI() {
+            const docCountEl = document.getElementById('doc-count');
+            const exitCountEl = document.getElementById('exit-count');
+            const genBtn = document.getElementById('generate-btn');
+            
+            // Update document count
+            docCountEl.textContent = `${documents.length}/3`;
+            docCountEl.className = documents.length === 3 ? 'complete' : 'incomplete';
+            
+            // Update exit count
+            exitCountEl.textContent = exitDoor ? '1/1' : '0/1';
+            exitCountEl.className = exitDoor ? 'complete' : 'incomplete';
+            
+            // Enable generate button if everything is placed
+            genBtn.disabled = !(documents.length === 3 && exitDoor);
+        }
+        
+        // Mode switching
+        document.getElementById('doc-mode-btn').addEventListener('click', () => {
+            placementMode = 'document';
+            document.getElementById('doc-mode-btn').classList.add('active');
+            document.getElementById('exit-mode-btn').classList.remove('active');
+        });
+        
+        document.getElementById('exit-mode-btn').addEventListener('click', () => {
+            placementMode = 'exit';
+            document.getElementById('exit-mode-btn').classList.add('active');
+            document.getElementById('doc-mode-btn').classList.remove('active');
+        });
+        
+        // Zoom controls
+        document.getElementById('zoom-out-btn').addEventListener('click', () => {
+            zoomLevel = Math.max(0.1, zoomLevel - 0.1);
+            applyZoom();
+            redraw();
+        });
+        
+        document.getElementById('zoom-in-btn').addEventListener('click', () => {
+            zoomLevel = Math.min(2, zoomLevel + 0.1);
+            applyZoom();
+            redraw();
+        });
+        
+        document.getElementById('fit-btn').addEventListener('click', () => {
+            zoomLevel = 0.25;
+            applyZoom();
+            redraw();
+        });
+        
+        // Undo last placement
+        document.getElementById('undo-btn').addEventListener('click', () => {
+            if (placementMode === 'document' && documents.length > 0) {
+                documents.pop();
+            } else if (placementMode === 'exit' && exitDoor) {
+                exitDoor = null;
+            }
+            updateUI();
+            redraw();
+        });
+        
+        // Clear all
+        document.getElementById('clear-btn').addEventListener('click', () => {
+            if (confirm('Clear all placements?')) {
+                documents = [];
+                exitDoor = null;
+                updateUI();
+                redraw();
+                document.getElementById('output').innerHTML = '';
+            }
+        });
+        
+        // Generate code
+        document.getElementById('generate-btn').addEventListener('click', () => {
+            const output = document.getElementById('output');
+            
+            let code = `// Document and Exit positions for Level ${currentLevel}\n\n`;
+            
+            code += '// Document positions (3 total)\n';
+            code += 'const DOCUMENT_POSITIONS = [\n';
+            documents.forEach((doc, index) => {
+                code += `    {x: ${doc.x}, y: ${doc.y}}`;
+                if (index < documents.length - 1) code += ',';
+                code += `  // Document ${index + 1}\n`;
+            });
+            code += '];\n\n';
+            
+            code += '// Exit door position\n';
+            code += `const EXIT_POSITION = {x: ${exitDoor.x}, y: ${exitDoor.y}};\n`;
+            
+            output.innerHTML = `<pre>${code}</pre>`;
+            
+            // Also log to console
+            console.log(code);
+            alert('Code generated! Check the output box and browser console. Copy and paste into your game code.');
+        });
+        
+        // Level switching
+        document.getElementById('level1-btn').addEventListener('click', () => {
+            if (currentLevel === 1) return;
+            
+            // Confirm if user has unsaved changes
+            if (documents.length > 0 || exitDoor !== null) {
+                if (!confirm(`Switch to Level 1? Any unsaved placements for Level ${currentLevel} will be lost.`)) {
+                    return;
+                }
+            }
+            
+            currentLevel = 1;
+            img.src = levelMaps[currentLevel];
+            documents = [];
+            exitDoor = null;
+            updateUI();
+            
+            // Update button styles
+            document.getElementById('level1-btn').style.backgroundColor = '#003300';
+            document.getElementById('level1-btn').style.borderColor = '#ffff00';
+            document.getElementById('level1-btn').style.color = '#ffff00';
+            document.getElementById('level2-btn').style.backgroundColor = 'transparent';
+            document.getElementById('level2-btn').style.borderColor = '#00ff00';
+            document.getElementById('level2-btn').style.color = '#00ff00';
+            document.getElementById('level3-btn').style.backgroundColor = 'transparent';
+            document.getElementById('level3-btn').style.borderColor = '#00ff00';
+            document.getElementById('level3-btn').style.color = '#00ff00';
+            document.getElementById('output').innerHTML = '';
+        });
+        
+        document.getElementById('level2-btn').addEventListener('click', () => {
+            if (currentLevel === 2) return;
+            
+            // Confirm if user has unsaved changes
+            if (documents.length > 0 || exitDoor !== null) {
+                if (!confirm(`Switch to Level 2? Any unsaved placements for Level ${currentLevel} will be lost.`)) {
+                    return;
+                }
+            }
+            
+            currentLevel = 2;
+            img.src = levelMaps[currentLevel];
+            documents = [];
+            exitDoor = null;
+            updateUI();
+            
+            // Update button styles
+            document.getElementById('level1-btn').style.backgroundColor = 'transparent';
+            document.getElementById('level1-btn').style.borderColor = '#00ff00';
+            document.getElementById('level1-btn').style.color = '#00ff00';
+            document.getElementById('level2-btn').style.backgroundColor = '#003300';
+            document.getElementById('level2-btn').style.borderColor = '#ffff00';
+            document.getElementById('level2-btn').style.color = '#ffff00';
+            document.getElementById('level3-btn').style.backgroundColor = 'transparent';
+            document.getElementById('level3-btn').style.borderColor = '#00ff00';
+            document.getElementById('level3-btn').style.color = '#00ff00';
+            document.getElementById('output').innerHTML = '';
+        });
+        
+        document.getElementById('level3-btn').addEventListener('click', () => {
+            if (currentLevel === 3) return;
+            
+            // Confirm if user has unsaved changes
+            if (documents.length > 0 || exitDoor !== null) {
+                if (!confirm(`Switch to Level 3? Any unsaved placements for Level ${currentLevel} will be lost.`)) {
+                    return;
+                }
+            }
+            
+            currentLevel = 3;
+            img.src = levelMaps[currentLevel];
+            documents = [];
+            exitDoor = null;
+            updateUI();
+            
+            // Update button styles
+            document.getElementById('level1-btn').style.backgroundColor = 'transparent';
+            document.getElementById('level1-btn').style.borderColor = '#00ff00';
+            document.getElementById('level1-btn').style.color = '#00ff00';
+            document.getElementById('level2-btn').style.backgroundColor = 'transparent';
+            document.getElementById('level2-btn').style.borderColor = '#00ff00';
+            document.getElementById('level2-btn').style.color = '#00ff00';
+            document.getElementById('level3-btn').style.backgroundColor = '#003300';
+            document.getElementById('level3-btn').style.borderColor = '#ffff00';
+            document.getElementById('level3-btn').style.color = '#ffff00';
+            document.getElementById('output').innerHTML = '';
+        });
+        
+        // Initialize
+        updateUI();
+    </script>
+</body>
+</html>
+
