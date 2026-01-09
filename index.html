@@ -46,28 +46,34 @@
             grid-column: 1 / -1;
             border-bottom: var(--border-width) solid var(--terminal-green);
             display: flex;
-            flex-direction: column;
-            justify-content: center;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
             padding: 10px 20px;
             background-color: var(--bg-black);
         }
         
-        @font-face {
-            font-family: 'Apple Garamond';
-            src: url('assets/apple_garamond (1)/AppleGaramond.ttf') format('truetype');
-            font-weight: normal;
-            font-style: normal;
+        #top-bar-content {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        #top-bar-glitch {
+            height: 60px;
+            width: auto;
+            opacity: 0.9;
         }
         
         #floor-title {
-            font-family: 'Apple Garamond', serif;
-            font-size: 32px;
+            font-family: 'Apple Garamond Light', serif;
+            font-size: 36px;
             font-weight: normal;
             margin-bottom: 5px;
         }
         
         #objective-text {
-            font-family: 'Serial', sans-serif;
+            font-family: 'Roboto Mono', monospace;
             font-size: 14px;
             font-weight: 300;
         }
@@ -254,18 +260,42 @@
             width: 100vw;
             height: 100vh;
             z-index: 9999;
-            background-image: url('assets/snowdenloadingscreen.png');
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
+            background-color: #000000;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
         }
         
+        #intro-screen::before {
+            content: '';
+            position: absolute;
+            top: 100px;
+            left: 20px;
+            width: 100%;
+            height: 100%;
+            background-image: url('tumblr_nv44lndz1l1u6xnmoo1_1280.gif');
+            background-size: 600px auto;
+            background-position: center;
+            background-repeat: no-repeat;
+            mix-blend-mode: hard-light;
+            opacity: 0.7;
+            z-index: 1;
+        }
+        
         #intro-screen.hidden {
             display: none;
+        }
+        
+        #intro-snowden-glitch {
+            position: absolute;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 1000px;
+            height: auto;
+            opacity: 0.9;
+            z-index: 2;
         }
         
         #start-prompt {
@@ -279,12 +309,50 @@
             background-color: rgba(0, 0, 0, 0.7);
             cursor: pointer;
             transition: all 0.3s ease;
+            position: absolute;
+            bottom: 100px;
+            z-index: 3;
         }
         
         #start-prompt:hover {
             background-color: var(--terminal-green);
             color: #000000;
             box-shadow: 0 0 20px var(--terminal-green);
+        }
+        
+        /* Story Intro Screen */
+        #story-intro-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 9997;
+            background-color: #000000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+            padding: 80px;
+        }
+        
+        #story-intro-screen.active {
+            display: flex;
+            opacity: 1;
+        }
+        
+        #story-intro-screen.fade-out {
+            opacity: 0;
+        }
+        
+        #story-text {
+            font-family: 'Roboto Mono', monospace;
+            font-size: 18px;
+            color: var(--terminal-green);
+            text-align: center;
+            line-height: 1.8;
+            max-width: 1200px;
         }
         
         /* Level Intro Screen */
@@ -296,28 +364,12 @@
             height: 100vh;
             z-index: 9998;
             background-color: #000000;
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
             display: none;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             opacity: 0;
             transition: opacity 1s ease-in-out;
-        }
-        
-        /* Level-specific backgrounds */
-        #level-intro-screen.level-1 {
-            background-image: url('assets/level-1-loading-screen.png');
-        }
-        
-        #level-intro-screen.level-2 {
-            background-image: url('assets/lvl-2-loading-screen.png');
-        }
-        
-        #level-intro-screen.level-3 {
-            background-image: url('assets/airobothallway.png');
         }
         
         #level-intro-screen.active {
@@ -329,8 +381,16 @@
             opacity: 0;
         }
         
+        /* Level enemy image - centered above text */
+        #level-intro-enemy {
+            width: 50px;
+            height: auto;
+            margin-bottom: 40px;
+            opacity: 0.9;
+        }
+        
         #level-intro-text {
-            font-family: 'Serial', sans-serif;
+            font-family: 'Roboto Mono', monospace;
             font-size: 48px;
             color: var(--terminal-green);
             text-transform: uppercase;
@@ -387,7 +447,7 @@
             left: 50%;
             transform: translateX(-50%);
             z-index: 999;
-            font-family: 'Serial', sans-serif;
+            font-family: 'Roboto Mono', monospace;
             font-size: 48px;
             color: var(--terminal-green);
             text-align: center;
@@ -405,8 +465,11 @@
     <div id="ui-grid">
         <!-- Top Bar -->
         <div id="top-bar">
-            <div id="floor-title">Floor 1 - Lobby and Conference</div>
-            <div id="objective-text">Objective: Find the files. Hack the mainframe. Get the fuck out.</div>
+            <div id="top-bar-content">
+                <div id="floor-title">Floor 1 - Lobby and Conference</div>
+                <div id="objective-text">Objective: Find the files. Hack the mainframe. Don't get caught.</div>
+            </div>
+            <img id="top-bar-glitch" src="assets/snowden glitch.png" alt="Snowden">
         </div>
         
         <!-- Left Panel - Mini Map -->
@@ -472,7 +535,7 @@
             </div>
             
             <div class="stat-item">
-                <span class="stat-label">Guards:</span> <span id="guard-count">12</span>
+                <span class="stat-label" id="guard-label">Guards:</span> <span id="guard-count">12</span>
             </div>
             
             <div class="stat-item">
@@ -482,18 +545,25 @@
         
         <!-- Bottom Bar - Narrative -->
         <div id="bottom-bar">
-            <div id="narrative-text">Type populates this box after each objective is reached.</div>
+            <div id="narrative-text">Find, decode, leak the documents.</div>
         </div>
     </div>
     
     <!-- Intro Screen Overlay -->
     <div id="intro-screen">
-        <div id="start-prompt">Press Enter to Start</div>
+        <img id="intro-snowden-glitch" src="assets/snowden glitch.png" alt="Snowden">
+        <div id="start-prompt">Press Enter or X to Start</div>
+    </div>
+    
+    <!-- Story Intro Screen -->
+    <div id="story-intro-screen">
+        <div id="story-text"></div>
     </div>
     
     <!-- Level Intro Screen -->
     <div id="level-intro-screen">
         <img id="level-intro-glitch" src="assets/snowden glitch.png" alt="">
+        <img id="level-intro-enemy" src="assets/camera.png" alt="">
         <div id="level-intro-text">Floor 1 - Server Room</div>
         <div id="level-intro-loading-bar">
             <div id="level-intro-loading-fill"></div>
@@ -516,8 +586,20 @@
             const levelIntro = document.getElementById('level-intro-screen');
             const levelIntroText = document.getElementById('level-intro-text');
             const loadingFill = document.getElementById('level-intro-loading-fill');
+            const enemyImage = document.getElementById('level-intro-enemy');
             
             console.log('🎬 Level intro starting...', levelName, 'Level:', levelNumber);
+            
+            // Set enemy image based on level
+            const enemyImages = {
+                1: 'assets/camera.png',
+                2: 'assets/coppng.png',
+                3: 'assets/droidbot.png'
+            };
+            
+            if (levelNumber && enemyImages[levelNumber]) {
+                enemyImage.src = enemyImages[levelNumber];
+            }
             
             // Clear text and reset classes
             levelIntroText.textContent = '';
@@ -585,6 +667,56 @@
             }, 6000); // 6 seconds total display time
         }
         
+        function showStoryIntro(callback) {
+            const storyIntro = document.getElementById('story-intro-screen');
+            const storyText = document.getElementById('story-text');
+            
+            const fullText = "In June 2013, Edward Snowden, a 29-year-old contractor for the National Security Agency stationed in Hawaii, leaked over 1.5 million classified files to journalists from The Guardian and The Washington Post. The documents revealed that the NSA was collecting phone records from millions of Verizon customers daily under a secret Foreign Intelligence Surveillance Court order dated April 25, 2013, and that through the PRISM program, tech giants like Google, Apple, and Facebook were compelled to provide direct access to user data. Snowden's disclosures showed that surveillance extended far beyond terrorism suspects, encompassing entire populations and foreign governments alike. The U.S. government immediately charged him under the Espionage Act of 1917, revoked his passport, and sought his extradition. Facing decades in prison, Snowden fled the United States on May 20, 2013, escaping first to Hong Kong and later into exile after releasing evidence that transformed the world's understanding of digital privacy, state power, and the cost of transparency.";
+            
+            // Split into sentences
+            const sentences = fullText.match(/[^\.!\?]+[\.!\?]+/g);
+            
+            storyText.textContent = '';
+            storyIntro.classList.add('active');
+            
+            let currentSentence = 0;
+            let currentChar = 0;
+            const typeSpeed = 30; // milliseconds per character
+            const sentencePause = 1500; // 1.5 seconds pause after each sentence
+            
+            function typeCharacter() {
+                if (currentSentence < sentences.length) {
+                    const sentence = sentences[currentSentence].trim();
+                    
+                    if (currentChar < sentence.length) {
+                        storyText.textContent += sentence.charAt(currentChar);
+                        currentChar++;
+                        setTimeout(typeCharacter, typeSpeed);
+                    } else {
+                        // Sentence complete, pause before next
+                        currentChar = 0;
+                        currentSentence++;
+                        if (currentSentence < sentences.length) {
+                            storyText.textContent += ' '; // Add space between sentences
+                            setTimeout(typeCharacter, sentencePause);
+                        } else {
+                            // All sentences complete, wait 2 seconds then fade out
+                            setTimeout(() => {
+                                storyIntro.classList.add('fade-out');
+                                setTimeout(() => {
+                                    storyIntro.style.display = 'none';
+                                    storyIntro.classList.remove('active', 'fade-out');
+                                    if (callback) callback();
+                                }, 1000); // 1 second fade out
+                            }, 2000); // 2 seconds pause at end
+                        }
+                    }
+                }
+            }
+            
+            typeCharacter();
+        }
+        
         function startGame() {
             if (!gameStarted) {
                 gameStarted = true;
@@ -592,14 +724,43 @@
                 // Hide intro screen
                 document.getElementById('intro-screen').classList.add('hidden');
                 
-                // Show level intro screen for Level 1
-                showLevelIntro('Floor 1 - Server Room', () => {
-                    // Load the game script after intro
-                    const script = document.createElement('script');
-                    script.src = 'js/game.js?v=33';
-                    document.body.appendChild(script);
-                }, 1);
+                // Show story intro first
+                showStoryIntro(() => {
+                    // Then show level intro screen for Level 1
+                    showLevelIntro('Floor 1 - Server Room', () => {
+                        // Load the game script after intro
+                        const script = document.createElement('script');
+                        script.src = 'js/game.js?v=37';
+                        document.body.appendChild(script);
+                    }, 1);
+                });
             }
+        }
+        
+        // PS5 Controller support for intro screen
+        let introGamepad = null;
+        let lastIntroXButtonState = false;
+        
+        // Check for connected gamepads
+        function checkGamepads() {
+            const gamepads = navigator.getGamepads();
+            for (let i = 0; i < gamepads.length; i++) {
+                if (gamepads[i]) {
+                    introGamepad = gamepads[i];
+                    break;
+                }
+            }
+        }
+        
+        // Check if PS5 X button is pressed (button 0)
+        function isIntroXButtonPressed() {
+            if (!introGamepad || !introGamepad.buttons[0]) return false;
+            
+            const currentState = introGamepad.buttons[0].pressed;
+            const wasPressed = !lastIntroXButtonState && currentState;  // Rising edge detection
+            lastIntroXButtonState = currentState;
+            
+            return wasPressed;
         }
         
         // Listen for Enter key
@@ -609,8 +770,58 @@
             }
         });
         
+        // Check for controller input on intro screen
+        function checkIntroControllerInput() {
+            if (!gameStarted) {
+                checkGamepads();  // Update gamepad reference
+                if (isIntroXButtonPressed()) {
+                    startGame();
+                }
+            }
+        }
+        
+        // Start checking for controller input
+        setInterval(checkIntroControllerInput, 16);  // ~60fps polling
+        
         // Click button to start
         document.getElementById('start-prompt').addEventListener('click', startGame);
+        
+        // Function to update right panel info for each level
+        function updateRightPanelForLevel(levelNum) {
+            const levelInfo = {
+                1: {
+                    difficulty: 'Easy',
+                    description: 'Lobby and conference sectors are under full visual surveillance. Movement must align with timing cycles to remain undetected. Environmental data suggests fixed rotational patterns and narrow dead zones suitable for passage.',
+                    building: 'Server Room - NSA Headquarters',
+                    time: '3:38:12 AM',
+                    guardLabel: 'Cameras:'
+                },
+                2: {
+                    difficulty: 'Medium',
+                    description: 'Facility corridors are actively monitored by internal security forces conducting timed patrols. Observation routes overlap near access points, requiring precise movement to avoid interception. Oh, and be very, very, quiet.',
+                    building: 'Lobby and Conference - NSA Headquarters',
+                    time: '4:15:47 AM',
+                    guardLabel: 'Guards:'
+                },
+                3: {
+                    difficulty: 'Hard',
+                    description: 'Central operations zone employs adaptive artificial intelligence for threat recognition and predictive tracking. Behavioral patterns are analyzed in real time; consistency increases detection probability. System disruption or evasion must occur before data collection completes.',
+                    building: 'Intellectual Property Vault - NSA Headquarters',
+                    time: '5:02:33 AM',
+                    guardLabel: 'Bots:'
+                }
+            };
+            
+            const info = levelInfo[levelNum];
+            if (info) {
+                document.getElementById('difficulty').textContent = info.difficulty;
+                document.getElementById('level-description').textContent = info.description;
+                document.getElementById('building-name').textContent = info.building;
+                document.getElementById('game-time').textContent = info.time;
+                document.getElementById('guard-label').textContent = info.guardLabel;
+                // Guard count will be updated by updateGuardCount() from game.js
+            }
+        }
     </script>
 </body>
 </html>

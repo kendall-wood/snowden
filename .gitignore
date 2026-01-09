@@ -37,3 +37,28 @@ logs
 *.log
 npm-debug.log*
 
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+secrets.json
+config.local.js
+
+# API keys and tokens (security)
+**/api_keys.json
+**/secrets/
+**/.credentials/
+
+# Node modules (if you add npm later)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build outputs
+dist/
+build/
+*.min.js
+*.min.css
+

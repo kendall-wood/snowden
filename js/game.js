@@ -65,12 +65,14 @@ let pathRecordingStartTime = 0;  // When recording started
 // Level 3 Part 2 - Connection Puzzle System
 let part2Active = false;  // Whether Part 2 puzzle is active
 let part2TimerStart = 0;  // When Part 2 timer started
-let part2TimeLimit = 90;  // 90 seconds to complete connections
+let part2TimeLimit = 100;  // 100 seconds to complete connections
 let connectionPoints = [];  // Array of connection point sprites
+let connectionPointPrompts = [];  // Array of "Press Enter" text objects for connection points
 let connections = [];  // Array of {pointA, pointB, completed, lineGraphic}
 let activeConnection = null;  // Current connection being drawn {pairIndex, lineGraphic}
 let part2ExitDoor = null;  // Part 2 exit door sprite
 let connectionLineGraphics;  // Graphics object for drawing lines
+let nearestConnectionPoint = null;  // Track which connection point player is near
 
 // UI variables
 let miniMapCanvas;  // Canvas for mini-map
@@ -121,7 +123,7 @@ const LEVEL_CONFIGS = {
         
         // Level 1 uses CAMERAS
         usesCameras: true,  // Flag to use cameras instead of guards
-        cameraCount: 0,  // 9 security cameras
+        guardCount: 9,  // 9 security cameras (shown as camera count)
         cameras: [
             {x: 4674, y: 2024, facingAngle: 2.3562},  // Camera 1
             {x: 3298, y: 2908, facingAngle: 5.4978},  // Camera 2
@@ -272,7 +274,7 @@ const LEVEL_CONFIGS = {
         name: "Floor 3 - Intellectual Property Vault",
         mapKey: "level3Map",
         mapFile: "assets/lvl-3-map.png",  // Door locked version
-        mapFileOpen: "assets/lvl-3.1-map.png",  // Door open version
+        mapFileOpen: "assets/lvl-3.1-map.png?v=2",  // Door open version
         mapWidth: 6315,
         mapHeight: 4467,
         playerStartX: 1765,
@@ -297,12 +299,12 @@ const LEVEL_CONFIGS = {
         
         // Part 2 objectives (after door opens)
         part2Objectives: {
-            // Connection puzzle - 45 seconds to connect all pairs
+            // Connection puzzle - 100 seconds to connect all pairs
             documentsNeeded: 0,  // No additional documents for Part 2
             exitPosition: {x: 500, y: 1000}  // Final exit - TODO: Get coordinates
         },
         
-        // Part 2 connection points (4 pairs = 8 points)
+        // Part 2 connection points (8 pairs = 16 points)
         part2ConnectionPoints: [
             // Connection 1
             {
@@ -323,6 +325,26 @@ const LEVEL_CONFIGS = {
             {
                 pointA: {x: 1884, y: 2989},
                 pointB: {x: 1884, y: 3163}
+            },
+            // Connection 5
+            {
+                pointA: {x: 2933, y: 2989},
+                pointB: {x: 2932, y: 3163}
+            },
+            // Connection 6
+            {
+                pointA: {x: 3077, y: 2989},
+                pointB: {x: 3078, y: 3164}
+            },
+            // Connection 7
+            {
+                pointA: {x: 3224, y: 2989},
+                pointB: {x: 3225, y: 3163}
+            },
+            // Connection 8
+            {
+                pointA: {x: 3368, y: 2987},
+                pointB: {x: 3368, y: 3163}
             }
         ],
         
@@ -642,6 +664,9 @@ function preload() {
     // Load camera sprite for Level 1
     this.load.image('cameraSprite', 'assets/camera.png');
     
+    // Load plug sprite for Level 3 connection points
+    this.load.image('plugSprite', 'assets/plug.png');
+    
     // Load footstep sound
     this.load.audio('footsteps', 'assets/Footstep sound effects (walking sound effect).mp3');
     
@@ -696,6 +721,11 @@ function create() {
     }
     
     console.log('Create: Setting up level', currentLevel);
+    
+    // Update right panel info for initial level
+    if (typeof updateRightPanelForLevel === 'function') {
+        updateRightPanelForLevel(currentLevel);
+    }
     
     // Get current level configuration
     const levelConfig = LEVEL_CONFIGS[currentLevel];
@@ -862,6 +892,80 @@ function create() {
                 console.log('❌ Debug auto-collect only works on Level 3');
             }
         });
+        this.input.keyboard.on('keydown-P', () => {
+            if (currentLevel === 3 && currentLevelPart === 2 && part2Active) {
+                console.log('🐛 DEBUG: Auto-completing all Part 2 connections');
+                
+                // Mark all connections as completed
+                connections.forEach((conn, index) => {
+                    if (!conn.completed) {
+                        conn.completed = true;
+                        console.log(`✓ Connection ${index + 1} auto-completed`);
+                    }
+                });
+                
+                // Mark all connection points as connected
+                connectionPoints.forEach(point => {
+                    point.connected = true;
+                });
+                
+                // Clear active connection
+                activeConnection = null;
+                
+                // Deactivate Part 2
+                part2Active = false;
+                
+                // Hide timer
+                const timerEl = document.getElementById('part2-timer');
+                if (timerEl) {
+                    timerEl.classList.remove('active');
+                }
+                
+                // Spawn Part 2 exit door
+                spawnPart2ExitDoor();
+                
+                console.log('✅ All connections complete! Part 2 exit door spawned.');
+            } else {
+                console.log('❌ Debug Part 2 complete only works during Level 3 Part 2');
+            }
+        });
+        this.input.keyboard.on('keydown-FIVE', () => {
+            if (currentLevel === 3 && currentLevelPart === 2 && part2Active) {
+                console.log('🐛 DEBUG (5 Key): Bypassing connection puzzle - spawning exit door');
+                
+                // Mark all connections as completed
+                connections.forEach((conn, index) => {
+                    if (!conn.completed) {
+                        conn.completed = true;
+                        console.log(`✓ Connection ${index + 1} auto-completed`);
+                    }
+                });
+                
+                // Mark all connection points as connected
+                connectionPoints.forEach(point => {
+                    point.connected = true;
+                });
+                
+                // Clear active connection
+                activeConnection = null;
+                
+                // Deactivate Part 2
+                part2Active = false;
+                
+                // Hide timer
+                const timerEl = document.getElementById('part2-timer');
+                if (timerEl) {
+                    timerEl.classList.remove('active');
+                }
+                
+                // Spawn Part 2 exit door
+                spawnPart2ExitDoor();
+                
+                console.log('✅ Connection puzzle bypassed! Part 2 exit door spawned.');
+            } else {
+                console.log('❌ Debug bypass (5 key) only works during Level 3 Part 2');
+            }
+        });
         this.input.keyboard.on('keydown-G', () => {
             if (gamepad) {
                 console.log('🎮 GAMEPAD DEBUG:');
@@ -882,8 +986,10 @@ function create() {
         console.log('   Press 1 = Level 1');
         console.log('   Press 2 = Level 2');
         console.log('   Press 3 = Level 3');
+        console.log('   Press 5 = Bypass Level 3 Connection Puzzle');
         console.log('   Press G = Show gamepad info');
         console.log('   Press D = Auto-collect Level 3 documents');
+        console.log('   Press P = Complete Part 2 connections');
         console.log('   Press V = Victory Screen');
     }
     
@@ -1317,9 +1423,17 @@ function initializeConnectionPuzzle(scene) {
     }
     
     // Clear any existing connection data
+    connectionPoints.forEach(point => {
+        if (point && point.destroy) point.destroy();
+    });
+    connectionPointPrompts.forEach(prompt => {
+        if (prompt && prompt.destroy) prompt.destroy();
+    });
     connectionPoints = [];
+    connectionPointPrompts = [];
     connections = [];
     activeConnection = null;
+    nearestConnectionPoint = null;
     
     // Create connection line graphics
     if (connectionLineGraphics) {
@@ -1329,36 +1443,48 @@ function initializeConnectionPuzzle(scene) {
     connectionLineGraphics.setDepth(5);  // Above ground, below player
     
     connectionData.forEach((pair, pairIndex) => {
-        // Create Point A
-        const pointASize = 15;
-        const pointAGraphics = scene.add.graphics();
-        pointAGraphics.fillStyle(0xff0000, 0.8);  // Red, semi-transparent
-        pointAGraphics.fillCircle(0, 0, pointASize);
-        pointAGraphics.lineStyle(3, 0xffffff, 1);  // White border
-        pointAGraphics.strokeCircle(0, 0, pointASize);
-        pointAGraphics.generateTexture(`connectionPointA_${pairIndex}`, pointASize * 2, pointASize * 2);
-        pointAGraphics.destroy();
-        
-        const pointASprite = scene.add.sprite(pair.pointA.x, pair.pointA.y, `connectionPointA_${pairIndex}`);
+        // Create Point A using plug sprite
+        const pointASprite = scene.add.sprite(pair.pointA.x, pair.pointA.y, 'plugSprite');
+        pointASprite.setDisplaySize(35, 35);  // 5px bigger than original 30px
+        pointASprite.setDepth(10);
         pointASprite.pairIndex = pairIndex;
         pointASprite.isPointA = true;
         pointASprite.connected = false;
         
-        // Create Point B
-        const pointBGraphics = scene.add.graphics();
-        pointBGraphics.fillStyle(0xff0000, 0.8);  // Red, semi-transparent
-        pointBGraphics.fillCircle(0, 0, pointASize);
-        pointBGraphics.lineStyle(3, 0xffffff, 1);  // White border
-        pointBGraphics.strokeCircle(0, 0, pointASize);
-        pointBGraphics.generateTexture(`connectionPointB_${pairIndex}`, pointASize * 2, pointASize * 2);
-        pointBGraphics.destroy();
+        // Create "Press Enter" prompt for Point A (hidden by default)
+        const promptA = scene.add.text(pair.pointA.x, pair.pointA.y - 30, 'Press ENTER / X', {
+            fontSize: '14px',
+            fill: '#00ff00',
+            fontFamily: 'Roboto Mono',
+            stroke: '#000000',
+            strokeThickness: 3
+        });
+        promptA.setOrigin(0.5);
+        promptA.setVisible(false);
+        promptA.setDepth(20);  // Above everything
         
-        const pointBSprite = scene.add.sprite(pair.pointB.x, pair.pointB.y, `connectionPointB_${pairIndex}`);
+        // Create Point B using plug sprite
+        const pointBSprite = scene.add.sprite(pair.pointB.x, pair.pointB.y, 'plugSprite');
+        pointBSprite.setDisplaySize(35, 35);  // 5px bigger than original 30px
+        pointBSprite.setDepth(10);
         pointBSprite.pairIndex = pairIndex;
         pointBSprite.isPointA = false;
         pointBSprite.connected = false;
         
+        // Create "Press Enter" prompt for Point B (hidden by default)
+        const promptB = scene.add.text(pair.pointB.x, pair.pointB.y - 30, 'Press ENTER / X', {
+            fontSize: '14px',
+            fill: '#00ff00',
+            fontFamily: 'Roboto Mono',
+            stroke: '#000000',
+            strokeThickness: 3
+        });
+        promptB.setOrigin(0.5);
+        promptB.setVisible(false);
+        promptB.setDepth(20);  // Above everything
+        
         connectionPoints.push(pointASprite, pointBSprite);
+        connectionPointPrompts.push(promptA, promptB);
         
         // Initialize connection state
         connections.push({
@@ -1372,7 +1498,7 @@ function initializeConnectionPuzzle(scene) {
         console.log(`✓ Connection ${pairIndex + 1}: Point A (${pair.pointA.x}, ${pair.pointA.y}) ↔ Point B (${pair.pointB.x}, ${pair.pointB.y})`);
     });
     
-    // Start the 45-second timer
+    // Start the 100-second timer
     part2Active = true;
     part2TimerStart = Date.now();
     
@@ -1384,7 +1510,7 @@ function initializeConnectionPuzzle(scene) {
         timerEl.style.color = '#00ff00';
     }
     
-    console.log(`✓ Connection puzzle initialized - 45 seconds to complete ${connections.length} connections!`);
+    console.log(`✓ Connection puzzle initialized - 100 seconds to complete ${connections.length} connections!`);
     console.log(`✓ Connection points created: ${connectionPoints.length} points`);
     console.log('✓ Press ENTER / X near Point A to start drawing, then ENTER / X at Point B to complete');
 }
@@ -1812,6 +1938,12 @@ function restartGame() {
     pathRecordingStartTime = 0;
     part2Active = false;
     
+    // Clear Part 2 exit door
+    if (part2ExitDoor) {
+        part2ExitDoor.destroy();
+        part2ExitDoor = null;
+    }
+    
     // Hide Part 2 timer
     const timerEl = document.getElementById('part2-timer');
     if (timerEl) {
@@ -1825,7 +1957,7 @@ function restartGame() {
     // Reset narrative text
     const narrativeEl = document.getElementById('narrative-text');
     if (narrativeEl) {
-        narrativeEl.textContent = 'Type populates this box after each objective is reached.';
+        narrativeEl.textContent = 'Find, decode, leak the documents.';
     }
     
     // Clear all guards and vision cones
@@ -1997,6 +2129,21 @@ function drawVisualIndicator() {
                 visualIndicator.fillPath();
             }
         });
+    }
+    
+    // Level 3 Part 2: Blue indicator for Part 2 exit door (after all connections complete)
+    if (currentLevel === 3 && currentLevelPart === 2 && part2ExitDoor) {
+        const angleToPart2Exit = Phaser.Math.Angle.Between(player.x, player.y, part2ExitDoor.x, part2ExitDoor.y);
+        const arcWidth = 40;
+        const arcStart = angleToPart2Exit - (arcWidth * Math.PI / 180) / 2;
+        const arcEnd = angleToPart2Exit + (arcWidth * Math.PI / 180) / 2;
+        
+        visualIndicator.fillStyle(0x0099ff, 0.8);  // Blue
+        visualIndicator.beginPath();
+        visualIndicator.arc(indicatorX, indicatorY, ringRadius, arcStart, arcEnd, false);
+        visualIndicator.lineTo(indicatorX, indicatorY);
+        visualIndicator.closePath();
+        visualIndicator.fillPath();
     }
 }
 
@@ -2458,10 +2605,73 @@ function updateConnectionPuzzle() {
             timerEl.classList.remove('active');
         }
         
-        // Level 3 orange doors NEVER show victory screen
-        // Players can continue exploring or we can add more objectives here later
-        console.log('✓ Level 3 Part 2 complete - No victory screen for orange doors');
+        // Spawn Part 2 exit door
+        spawnPart2ExitDoor();
+        
+        console.log('✓ Level 3 Part 2 complete - Part 2 exit door spawned');
     }
+}
+
+// Check if player is near any connection points
+function checkConnectionPointProximity() {
+    if (!player || connectionPoints.length === 0 || !part2Active) return;
+    
+    nearestConnectionPoint = null;
+    let nearestDistance = Infinity;
+    
+    // Check each connection point
+    connectionPoints.forEach((point, index) => {
+        // Only check points that aren't already connected or are part of an active connection
+        const connection = connections[point.pairIndex];
+        const isRelevant = !point.connected || 
+                          (activeConnection && activeConnection.pairIndex === point.pairIndex);
+        
+        if (isRelevant) {
+            const distance = Phaser.Math.Distance.Between(player.x, player.y, point.x, point.y);
+            
+            // Check if within 50px range
+            if (distance <= 50) {
+                if (distance < nearestDistance) {
+                    nearestDistance = distance;
+                    nearestConnectionPoint = {point, index};
+                }
+            }
+        }
+    });
+    
+    // Update prompts visibility
+    connectionPointPrompts.forEach((prompt, index) => {
+        if (nearestConnectionPoint && nearestConnectionPoint.index === index) {
+            // Show prompt for nearest connection point
+            prompt.setVisible(true);
+        } else {
+            // Hide prompt for other connection points
+            prompt.setVisible(false);
+        }
+    });
+}
+
+// Spawn Part 2 exit door after all connections are complete
+function spawnPart2ExitDoor() {
+    if (!sceneReference || part2ExitDoor) return;  // Already spawned
+    
+    const doorPosition = {x: 4334, y: 3020};
+    const doorSize = 60;
+    const doorColor = 0x0080ff;  // Blue color
+    
+    // Create blue door texture
+    const doorGraphics = sceneReference.add.graphics();
+    doorGraphics.fillStyle(doorColor, 1);
+    doorGraphics.fillRect(0, 0, doorSize, doorSize);
+    doorGraphics.generateTexture('part2ExitDoor', doorSize, doorSize);
+    doorGraphics.destroy();
+    
+    // Spawn Part 2 exit door
+    part2ExitDoor = sceneReference.add.sprite(doorPosition.x, doorPosition.y, 'part2ExitDoor');
+    part2ExitDoor.setOrigin(0.5);
+    part2ExitDoor.setDepth(5);
+    
+    console.log(`✓ Part 2 exit door spawned at (${doorPosition.x}, ${doorPosition.y})`);
 }
 
 // Handle connection point interaction
@@ -2870,8 +3080,14 @@ function update() {
     // PHASE 5: Exit door interaction
     checkExitDoorProximity();
     
+    // PHASE 5.5: Part 2 exit door interaction
+    if (currentLevel === 3 && currentLevelPart === 2 && part2ExitDoor) {
+        checkPart2ExitDoorProximity();
+    }
+    
     // PHASE 6: Level 3 Part 2 - Connection Puzzle
     if (part2Active && !gameOver) {
+        checkConnectionPointProximity();
         updateConnectionPuzzle();
         drawConnectionLines();
     }
@@ -3000,10 +3216,17 @@ function updateGameTime() {
     const elapsed = Date.now() - gameStartTime;
     const seconds = Math.floor(elapsed / 1000);
     
-    // Start time: 3:38:12 AM, advance by elapsed seconds
-    const startHour = 3;
-    const startMinute = 38;
-    const startSecond = 12;
+    // Different start times for each level
+    const levelStartTimes = {
+        1: {hour: 3, minute: 38, second: 12},  // 3:38:12 AM
+        2: {hour: 4, minute: 15, second: 47},  // 4:15:47 AM
+        3: {hour: 5, minute: 2, second: 33}    // 5:02:33 AM
+    };
+    
+    const startTime = levelStartTimes[currentLevel] || levelStartTimes[1];
+    const startHour = startTime.hour;
+    const startMinute = startTime.minute;
+    const startSecond = startTime.second;
     
     const totalSeconds = startHour * 3600 + startMinute * 60 + startSecond + seconds;
     const hours = Math.floor(totalSeconds / 3600) % 24;
@@ -3040,20 +3263,29 @@ function updateUI() {
 }
 
 // Typewriter effect for narrative box
+let currentTypewriterInterval = null;
+
 function typewriterNarrative(text, speed = 50) {
     const narrativeEl = document.getElementById('narrative-text');
     if (!narrativeEl) return;
     
-    narrativeEl.innerHTML = '';
+    // Clear any existing typewriter animation
+    if (currentTypewriterInterval) {
+        clearInterval(currentTypewriterInterval);
+        currentTypewriterInterval = null;
+    }
+    
+    narrativeEl.textContent = '';
     narrativeEl.classList.add('typing');
     
     let index = 0;
-    const typeInterval = setInterval(() => {
+    currentTypewriterInterval = setInterval(() => {
         if (index < text.length) {
-            narrativeEl.innerHTML += text.charAt(index);
+            narrativeEl.textContent += text.charAt(index);
             index++;
         } else {
-            clearInterval(typeInterval);
+            clearInterval(currentTypewriterInterval);
+            currentTypewriterInterval = null;
             narrativeEl.classList.remove('typing');
         }
     }, speed);
@@ -3128,6 +3360,12 @@ function collectDocument(documentIndex) {
     const doc = documents[documentIndex];
     const prompt = documentPrompts[documentIndex];
     
+    // Check if already collected to prevent double-counting
+    if (doc.collected) {
+        console.log(`⚠️ Document ${documentIndex + 1} already collected, skipping`);
+        return;
+    }
+    
     // Mark as collected
     doc.collected = true;
     doc.setVisible(false);
@@ -3139,27 +3377,8 @@ function collectDocument(documentIndex) {
     // Update UI counter
     updateDocumentCounter();
     
-    // Show narrative text (level-specific narratives)
-    const narrativeTexts = {
-        1: [
-            "FILE ACCESSED: Classified server access logs. Backdoor installations on major tech platforms documented.",
-            "FILE ACCESSED: International surveillance partnerships. Five Eyes intelligence sharing beyond legal limits.",
-            "FILE ACCESSED: Encryption breaking capabilities. NSA maintains backdoors in commercial cryptography."
-        ],
-        2: [
-            "FILE ACCESSED: Operation PRISM surveillance protocols. Congressional oversight bypassed. Mass data collection authorized without warrants.",
-            "FILE ACCESSED: XKEYSCORE search system documentation. Real-time interception of internet activity. No prior authorization required.",
-            "FILE ACCESSED: BOUNDLESS INFORMANT heat maps. Global surveillance statistics. They're watching everyone, everywhere."
-        ],
-        3: [
-            "FILE ACCESSED: Advanced AI surveillance integration. Autonomous threat detection systems deployed without human oversight or legal framework.",
-            "FILE ACCESSED: Quantum decryption prototypes. All current encryption standards compromised. Global communications fully transparent to agency.",
-            "FILE ACCESSED: Executive authorization for unrestricted domestic surveillance. Constitutional protections suspended under classified directive."
-        ]
-    };
-    
-    const levelNarratives = narrativeTexts[currentLevel] || narrativeTexts[1];
-    typewriterNarrative(levelNarratives[documentIndex]);
+    // Show narrative text - consistent message for all document collections
+    typewriterNarrative("COMPLETE: Document Leaked. Keep going, there's still work to do.");
     
     // Check if all documents collected
     if (documentsCollected >= levelConfig.documentCount) {
@@ -3438,9 +3657,9 @@ function checkPS5TypingInput() {
     if (!miniGameActive || !miniGameState) return;
     
     if (miniGameState.phase === 'typing') {
-        // L1 or R1 button press counts as typing (same as keyboard)
+        // L1 or R1 button press counts as 2 inputs (double speed for controller)
         if (isPS5L1Pressed() || isPS5R1Pressed()) {
-            miniGameState.charsTyped++;
+            miniGameState.charsTyped += 3;  // Double input for controller
             
             // Reveal text progressively
             const progress = miniGameState.charsTyped / MINIGAME_CHARS_REQUIRED;
@@ -3751,7 +3970,7 @@ function miniGameComplete() {
     // Show success message
     const typingArea = document.getElementById('typing-area');
     typingArea.innerHTML = `
-        <div style="font-size: 64px; font-family: 'Serial', sans-serif; font-weight: 300; margin-bottom: 20px;">
+        <div style="font-size: 64px; font-family: 'Roboto Mono', monospace; font-weight: 300; margin-bottom: 20px;">
             SUCCESS
         </div>
         <div style="font-size: 18px;">FILE DECRYPTED</div>
@@ -3875,188 +4094,191 @@ function checkExitDoorProximity() {
         return;  // Exit early - Level 3 NEVER shows victory screen
     }
     
-    // Check if player is touching exit door (within 50px) - ONLY for Levels 1 & 2
-    if (distance <= 60
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-    ) {
+    // Check if player is touching exit door (within 60px) - ONLY for Levels 1 & 2
+    if (distance <= 60) {
         // Level complete!
         gameOver = true;  // Prevent multiple calls
         showVictoryScreen();
     }
 }
+
+// Check if player is near Part 2 exit door
+function checkPart2ExitDoorProximity() {
+    if (!player || !part2ExitDoor || gameOver) return;
+    
+    const distance = Phaser.Math.Distance.Between(player.x, player.y, part2ExitDoor.x, part2ExitDoor.y);
+    
+    // Check if player is touching Part 2 exit door (within 60px)
+    if (distance <= 350) {
+        // Level 3 complete!
+        gameOver = true;  // Prevent multiple calls
+        showVideoEnding();
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // Show victory screen with stats
 function showVictoryScreen() {
@@ -4096,8 +4318,8 @@ function showVictoryScreen() {
     const title = document.createElement('div');
     title.style.cssText = `
         font-size: 96px;
-        font-family: 'Serial', sans-serif;
-        font-weight: 300;
+        font-family: 'Apple Garamond Light', serif;
+        font-weight: normal;
         margin-bottom: 50px;
         color: #00FF00;
     `;
@@ -4120,7 +4342,7 @@ function showVictoryScreen() {
     
     // Continue button
     const continueBtn = document.createElement('button');
-    continueBtn.textContent = hasNextLevel ? 'CONTINUE' : 'GAME COMPLETE';
+    continueBtn.textContent = hasNextLevel ? 'PRESS ENTER / X TO CONTINUE' : 'GAME COMPLETE - PRESS ENTER / X';
     continueBtn.style.cssText = `
         background-color: transparent;
         color: #00FF00;
@@ -4153,17 +4375,201 @@ function showVictoryScreen() {
         }
     });
     
+    // Add keyboard/controller support for continue (ENTER or X button)
+    const handleContinueInput = (event) => {
+        if (event.key === 'Enter' || isPS5XButtonPressed()) {
+            continueBtn.click();
+            document.removeEventListener('keydown', handleContinueInput);
+        }
+    };
+    
+    document.addEventListener('keydown', handleContinueInput);
+    
     victoryContainer.appendChild(title);
     victoryContainer.appendChild(statsContainer);
     victoryContainer.appendChild(continueBtn);
     document.body.appendChild(victoryContainer);
     
-    console.log('✅ LEVEL COMPLETE! Victory screen shown.');
+    console.log('✅ LEVEL COMPLETE! Victory screen shown. Press ENTER / X to continue.');
+}
+
+// Show video ending for Level 3 completion
+function showVideoEnding() {
+    gameOver = true;  // Stop game logic
+    
+    // Calculate stats
+    const timeElapsed = Math.floor((Date.now() - gameStartTime) / 1000);
+    const minutes = Math.floor(timeElapsed / 60);
+    const seconds = timeElapsed % 60;
+    const timeString = `${minutes}:${String(seconds).padStart(2, '0')}`;
+    
+    // Create video overlay container
+    const videoContainer = document.createElement('div');
+    videoContainer.id = 'video-ending-overlay';
+    videoContainer.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: #000000;
+        z-index: 2000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    `;
+    
+    // Create video element
+    const video = document.createElement('video');
+    video.src = 'assets/8-bit-artwork-sky-landscape-wallpaper-preview_1.mp4';
+    video.style.cssText = `
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    `;
+    video.autoplay = true;
+    video.muted = false;
+    
+    // Create stats overlay
+    const statsOverlay = document.createElement('div');
+    statsOverlay.id = 'stats-overlay';
+    statsOverlay.style.cssText = `
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-family: 'Roboto Mono', monospace;
+        color: #00FF00;
+        text-align: center;
+        z-index: 2001;
+        pointer-events: none;
+    `;
+    
+    // Stats info
+    const statsInfo = document.createElement('div');
+    statsInfo.style.cssText = `
+        font-size: 24px;
+        line-height: 2;
+        text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+    `;
+    
+    statsInfo.innerHTML = `
+        <div>TIME: ${timeString}</div>
+        <div>DOCUMENTS COLLECTED: ${documentsCollected}/${LEVEL_CONFIGS[3].documentCount}</div>
+        <div>MISSION: COMPLETE</div>
+    `;
+    
+    statsOverlay.appendChild(statsInfo);
+    
+    // Create return home button (hidden initially, shown after video ends)
+    const returnBtn = document.createElement('button');
+    returnBtn.textContent = 'PRESS ENTER OR X TO RETURN HOME';
+    returnBtn.style.cssText = `
+        position: absolute;
+        bottom: 100px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: transparent;
+        color: #00FF00;
+        border: 2px solid #00FF00;
+        padding: 15px 40px;
+        font-family: 'Roboto Mono', monospace;
+        font-size: 20px;
+        cursor: pointer;
+        z-index: 2002;
+        display: none;
+        letter-spacing: 2px;
+    `;
+    
+    // Show return button when video ends
+    video.addEventListener('ended', () => {
+        returnBtn.style.display = 'block';
+    });
+    
+    // Return home functionality
+    function returnHome() {
+        videoContainer.remove();
+        window.location.reload(); // Reload to go back to intro screen
+    }
+    
+    returnBtn.addEventListener('click', returnHome);
+    
+    // Listen for Enter key
+    function handleEnterKey(e) {
+        if (e.key === 'Enter' && returnBtn.style.display === 'block') {
+            returnHome();
+            document.removeEventListener('keydown', handleEnterKey);
+            clearInterval(controllerInterval); // Stop controller polling
+        }
+    }
+    document.addEventListener('keydown', handleEnterKey);
+    
+    // PS5 Controller support for ending screen
+    let endingGamepad = null;
+    let lastEndingXButtonState = false;
+    
+    // Check for connected gamepads
+    function checkEndingGamepads() {
+        const gamepads = navigator.getGamepads();
+        for (let i = 0; i < gamepads.length; i++) {
+            if (gamepads[i]) {
+                endingGamepad = gamepads[i];
+                break;
+            }
+        }
+    }
+    
+    // Check if PS5 X button is pressed (button 0)
+    function isEndingXButtonPressed() {
+        if (!endingGamepad || !endingGamepad.buttons[0]) return false;
+        
+        const currentState = endingGamepad.buttons[0].pressed;
+        const wasPressed = !lastEndingXButtonState && currentState;  // Rising edge detection
+        lastEndingXButtonState = currentState;
+        
+        return wasPressed;
+    }
+    
+    // Check for controller input on ending screen
+    function checkEndingControllerInput() {
+        if (returnBtn.style.display === 'block') {
+            checkEndingGamepads();  // Update gamepad reference
+            if (isEndingXButtonPressed()) {
+                returnHome();
+                clearInterval(controllerInterval); // Stop controller polling
+            }
+        }
+    }
+    
+    // Start checking for controller input
+    const controllerInterval = setInterval(checkEndingControllerInput, 16);  // ~60fps polling
+    
+    returnBtn.addEventListener('mouseenter', () => {
+        returnBtn.style.backgroundColor = 'rgba(0, 255, 0, 0.2)';
+    });
+    
+    returnBtn.addEventListener('mouseleave', () => {
+        returnBtn.style.backgroundColor = 'transparent';
+    });
+    
+    // Append everything to container
+    videoContainer.appendChild(video);
+    videoContainer.appendChild(statsOverlay);
+    videoContainer.appendChild(returnBtn);
+    document.body.appendChild(videoContainer);
+    
+    console.log('🎬 Video ending screen shown.');
 }
 
 // Load a specific level (with loading screen)
 function loadLevel(levelNum) {
     console.log(`Loading Level ${levelNum}...`);
+    
+    // Hide game UI immediately to prevent map flash
+    const uiGrid = document.getElementById('ui-grid');
+    if (uiGrid) {
+        uiGrid.style.display = 'none';
+    }
     
     // Get level configuration for name
     const levelConfig = LEVEL_CONFIGS[levelNum];
@@ -4208,10 +4614,15 @@ function loadLevelImmediate(levelNum) {
     // Reset document counter
     updateDocumentCounter();
     
+    // Update right panel info for the new level
+    if (typeof updateRightPanelForLevel === 'function') {
+        updateRightPanelForLevel(levelNum);
+    }
+    
     // Reset narrative text
     const narrativeEl = document.getElementById('narrative-text');
     if (narrativeEl) {
-        narrativeEl.textContent = 'Type populates this box after each objective is reached.';
+        narrativeEl.textContent = 'Find, decode, leak the documents.';
     }
     
     // Clear all guards and vision cones
@@ -4230,6 +4641,18 @@ function loadLevelImmediate(levelNum) {
     if (exitDoor) {
         exitDoor.destroy();
         exitDoor = null;
+    }
+    
+    // Destroy Part 2 exit door
+    if (part2ExitDoor) {
+        part2ExitDoor.destroy();
+        part2ExitDoor = null;
+    }
+    
+    // Show game UI before restarting scene
+    const uiGrid = document.getElementById('ui-grid');
+    if (uiGrid) {
+        uiGrid.style.display = 'grid';
     }
     
     // Restart the scene (which will now load the new level)

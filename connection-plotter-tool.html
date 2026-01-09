@@ -121,7 +121,7 @@
             <div class="instructions">
                 <strong>INSTRUCTIONS:</strong><br>
                 1. Click on map to place connection points<br>
-                2. Place 8 points (4 pairs) total<br>
+                2. Place 16 points (8 pairs) total<br>
                 3. Points auto-pair: 1A→1B, 2A→2B, etc.<br>
                 4. Red dots show placement<br>
                 5. Click "Generate Code" when done
@@ -130,8 +130,8 @@
             <div id="status-info" class="item-info">
                 <strong>Status:</strong><br>
                 <span id="point-info">Click to place <span class="connection-pair">Connection 1A</span></span><br>
-                Points Placed: <span id="point-count" class="incomplete">0/8</span><br>
-                Pairs Complete: <span id="pair-count" class="incomplete">0/4</span>
+                Points Placed: <span id="point-count" class="incomplete">0/16</span><br>
+                Pairs Complete: <span id="pair-count" class="incomplete">0/8</span>
             </div>
             
             <div class="zoom-controls">
@@ -170,7 +170,7 @@
         // Zoom level
         let zoomLevel = 0.25;  // Start at 25%
         
-        // Connection points array (8 points = 4 pairs)
+        // Connection points array (16 points = 8 pairs)
         let connectionPoints = [];
         
         // Load and draw map
@@ -262,15 +262,15 @@
             const completePairs = Math.floor(nextIndex / 2);
             
             // Update counts
-            pointCountSpan.textContent = `${nextIndex}/8`;
-            pointCountSpan.className = nextIndex === 8 ? 'complete' : 'incomplete';
+            pointCountSpan.textContent = `${nextIndex}/16`;
+            pointCountSpan.className = nextIndex === 16 ? 'complete' : 'incomplete';
             
-            pairCountSpan.textContent = `${completePairs}/4`;
-            pairCountSpan.className = completePairs === 4 ? 'complete' : 'incomplete';
+            pairCountSpan.textContent = `${completePairs}/8`;
+            pairCountSpan.className = completePairs === 8 ? 'complete' : 'incomplete';
             
             // Update next placement text
-            if (nextIndex >= 8) {
-                pointInfo.innerHTML = '<span style="color: #00ff00;">✓ All 4 connection pairs placed!</span>';
+            if (nextIndex >= 16) {
+                pointInfo.innerHTML = '<span style="color: #00ff00;">✓ All 8 connection pairs placed!</span>';
             } else {
                 const pairNumber = Math.floor(nextIndex / 2) + 1;
                 const isFirst = nextIndex % 2 === 0;
@@ -281,8 +281,8 @@
         
         // Handle canvas clicks
         canvas.addEventListener('click', (e) => {
-            if (connectionPoints.length >= 8) {
-                alert('All 8 connection points placed! Click "Generate Code" or "Clear All Points"');
+            if (connectionPoints.length >= 16) {
+                alert('All 16 connection points placed! Click "Generate Code" or "Clear All Points"');
                 return;
             }
             
@@ -313,8 +313,8 @@
         
         // Generate code
         document.getElementById('generate-btn').addEventListener('click', () => {
-            if (connectionPoints.length !== 8) {
-                output.textContent = `Error: Need exactly 8 points (4 pairs). Currently placed: ${connectionPoints.length}/8`;
+            if (connectionPoints.length !== 16) {
+                output.textContent = `Error: Need exactly 16 points (8 pairs). Currently placed: ${connectionPoints.length}/16`;
                 return;
             }
             
@@ -336,7 +336,7 @@
             
             code += '],\n\n';
             code += '// Summary:\n';
-            code += `// Total connections: 4 pairs (8 points)\n`;
+            code += `// Total connections: 8 pairs (16 points)\n`;
             code += `// Timer: 45 seconds\n`;
             
             output.textContent = code;

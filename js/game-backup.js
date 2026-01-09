@@ -2063,7 +2063,7 @@ function miniGameComplete() {
     // Show success message
     const typingArea = document.getElementById('typing-area');
     typingArea.innerHTML = `
-        <div style="font-size: 64px; font-family: 'Serial', sans-serif; font-weight: 300; margin-bottom: 20px;">
+        <div style="font-size: 64px; font-family: 'Roboto Mono', monospace; font-weight: 300; margin-bottom: 20px;">
             SUCCESS
         </div>
         <div style="font-size: 18px;">FILE DECRYPTED</div>
@@ -2171,8 +2171,8 @@ function showVictoryScreen() {
     const title = document.createElement('div');
     title.style.cssText = `
         font-size: 96px;
-        font-family: 'Serial', sans-serif;
-        font-weight: 300;
+        font-family: 'Apple Garamond Light', serif;
+        font-weight: normal;
         margin-bottom: 50px;
         color: #00FF00;
     `;
