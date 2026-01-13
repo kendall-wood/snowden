@@ -155,6 +155,7 @@ const LEVEL_CONFIGS = {
         
         // Level 2 uses GUARDS with patrol paths
         guardCount: 12,
+        guardCatchRange: 35,  // Proximity catch radius for Level 2 guards
         
         cameras: [],  // No cameras on Level 2
         
@@ -284,7 +285,7 @@ const LEVEL_CONFIGS = {
         guardCount: 4,
         usesPathFollowing: true,  // Flag for special Level 3 guard behavior
         guardHearingRange: 200,  // Hearing radius in pixels
-        guardCatchRange: 15,  // Proximity catch radius
+        guardCatchRange: 40,  // Proximity catch radius (increased from 15)
         guardSpeed: 107,  // Player speed (100) + 7
         
         cameras: [],  // No cameras on Level 3
@@ -2876,6 +2877,12 @@ function update() {
     
     // Handle footstep sound based on movement (not during mini-game)
     const playerIsMoving = (moveX !== 0 || moveY !== 0);
+    
+    // Keep audio context alive while moving
+    if (playerIsMoving && !miniGameActive && sceneReference.sound.context && sceneReference.sound.context.state === 'suspended') {
+        sceneReference.sound.context.resume();
+    }
+    
     if (playerIsMoving && !isPlayerMoving && footstepSound && !miniGameActive) {
         // Ensure audio context is running
         if (sceneReference.sound.context && sceneReference.sound.context.state === 'suspended') {
@@ -2898,6 +2905,13 @@ function update() {
             }
         });
         isPlayerMoving = false;
+    }
+    
+    // Additional check: If footstep should be playing but isn't, restart it
+    if (playerIsMoving && isPlayerMoving && footstepSound && !footstepSound.isPlaying && !miniGameActive) {
+        console.log('⚠️ Footstep sound stopped unexpectedly, restarting...');
+        footstepSound.setVolume(0.3);
+        footstepSound.play();
     }
     
     // Pixel-perfect collision detection - PREVENT movement into walls
@@ -3035,6 +3049,57 @@ function update() {
             
             // Draw the vision cone (Levels 1 & 2 only)
             drawVisionCone(visionCone, guard);
+            
+            // Level 2: Also check proximity catch (in addition to vision)
+            if (currentLevel === 2) {
+                const levelConfig = LEVEL_CONFIGS[currentLevel];
+                const distanceToPlayer = Phaser.Math.Distance.Between(guard.x, guard.y, player.x, player.y);
+                if (levelConfig.guardCatchRange && distanceToPlayer <= levelConfig.guardCatchRange) {
+                    gameOver = true;
+                    console.log('💀 CAUGHT BY LEVEL 2 GUARD (PROXIMITY)! Restarting in 1 second...');
+                    
+                    // Stop all tweens immediately (including footstep fade-outs)
+                    if (sceneReference && sceneReference.tweens) {
+                        sceneReference.tweens.killAll();
+                    }
+                    
+                    if (footstepSound && footstepSound.isPlaying) {
+                        footstepSound.stop();
+                    }
+                    
+                    // Play "Hey!" sound
+                    if (heySound) {
+                        if (sceneReference.sound.context) {
+                            sceneReference.sound.context.resume().then(() => {
+                                heySound.setVolume(1.0);
+                                heySound.play();
+                            });
+                        } else {
+                            heySound.setVolume(1.0);
+                            heySound.play();
+                        }
+                    }
+                    
+                    const gameOverText = sceneReference.add.text(
+                        player.x, player.y - 50,
+                        'CAUGHT!',
+                        {
+                            fontSize: '32px',
+                            fill: '#ff0000',
+                            fontFamily: 'Courier New',
+                            stroke: '#000000',
+                            strokeThickness: 4
+                        }
+                    );
+                    gameOverText.setOrigin(0.5);
+                    
+                    sceneReference.time.delayedCall(1000, () => {
+                        restartGame();
+                    });
+                    
+                    break;  // Stop checking other guards
+                }
+            }
             
             // Check if guard SEES the player (hearing only makes them turn, not catch)
             if (canSeePlayer(guard)) {
