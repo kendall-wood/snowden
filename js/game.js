@@ -2838,42 +2838,45 @@ function update() {
     // Get PS5 controller input (separate from keyboard)
     const leftStick = getPS5LeftStick();
     
-    // Check which keys are pressed and move accordingly (Arrow keys or WASD or PS5 Left Stick)
-    if (cursors.left.isDown || cursors.a.isDown || leftStick.x < -0.1) {
-        player.setVelocityX(-currentSpeed);
-        moveX = -1;
-    }
-    else if (cursors.right.isDown || cursors.d.isDown || leftStick.x > 0.1) {
-        player.setVelocityX(currentSpeed);
-        moveX = 1;
+    // Disable movement during mini-game (decryption)
+    if (!miniGameActive) {
+        // Check which keys are pressed and move accordingly (Arrow keys or WASD or PS5 Left Stick)
+        if (cursors.left.isDown || cursors.a.isDown || leftStick.x < -0.1) {
+            player.setVelocityX(-currentSpeed);
+            moveX = -1;
+        }
+        else if (cursors.right.isDown || cursors.d.isDown || leftStick.x > 0.1) {
+            player.setVelocityX(currentSpeed);
+            moveX = 1;
+        }
+        
+        if (cursors.up.isDown || cursors.w.isDown || leftStick.y < -0.1) {
+            player.setVelocityY(-currentSpeed);
+            moveY = -1;
+        }
+        else if (cursors.down.isDown || cursors.s.isDown || leftStick.y > 0.1) {
+            player.setVelocityY(currentSpeed);
+            moveY = 1;
+        }
+        
+        // Normalize diagonal movement (keyboard or controller)
+        const hasKeyboardInput = (cursors.left.isDown || cursors.right.isDown || cursors.a.isDown || cursors.d.isDown) && 
+                                (cursors.up.isDown || cursors.down.isDown || cursors.w.isDown || cursors.s.isDown);
+        const hasStickInput = (Math.abs(leftStick.x) > 0.1 && Math.abs(leftStick.y) > 0.1);
+        
+        if (hasKeyboardInput || hasStickInput) {
+            player.body.velocity.normalize().scale(currentSpeed);
+        }
+        
+        // Update player facing direction based on movement
+        if (moveX !== 0 || moveY !== 0) {
+            player.facingAngle = Math.atan2(moveY, moveX);
+        }
     }
     
-    if (cursors.up.isDown || cursors.w.isDown || leftStick.y < -0.1) {
-        player.setVelocityY(-currentSpeed);
-        moveY = -1;
-    }
-    else if (cursors.down.isDown || cursors.s.isDown || leftStick.y > 0.1) {
-        player.setVelocityY(currentSpeed);
-        moveY = 1;
-    }
-    
-    // Normalize diagonal movement (keyboard or controller)
-    const hasKeyboardInput = (cursors.left.isDown || cursors.right.isDown || cursors.a.isDown || cursors.d.isDown) && 
-                            (cursors.up.isDown || cursors.down.isDown || cursors.w.isDown || cursors.s.isDown);
-    const hasStickInput = (Math.abs(leftStick.x) > 0.1 && Math.abs(leftStick.y) > 0.1);
-    
-    if (hasKeyboardInput || hasStickInput) {
-        player.body.velocity.normalize().scale(currentSpeed);
-    }
-    
-    // Update player facing direction based on movement
-    if (moveX !== 0 || moveY !== 0) {
-        player.facingAngle = Math.atan2(moveY, moveX);
-    }
-    
-    // Handle footstep sound based on movement
+    // Handle footstep sound based on movement (not during mini-game)
     const playerIsMoving = (moveX !== 0 || moveY !== 0);
-    if (playerIsMoving && !isPlayerMoving && footstepSound) {
+    if (playerIsMoving && !isPlayerMoving && footstepSound && !miniGameActive) {
         // Ensure audio context is running
         if (sceneReference.sound.context && sceneReference.sound.context.state === 'suspended') {
             sceneReference.sound.context.resume();
@@ -2883,7 +2886,7 @@ function update() {
         footstepSound.setVolume(0.3);
         footstepSound.play();
         isPlayerMoving = true;
-    } else if (!playerIsMoving && isPlayerMoving && footstepSound && footstepSound.isPlaying) {
+    } else if ((!playerIsMoving || miniGameActive) && isPlayerMoving && footstepSound && footstepSound.isPlaying) {
         // Player just stopped moving - fade out footsteps smoothly
         sceneReference.tweens.add({
             targets: footstepSound,
