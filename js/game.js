@@ -1924,9 +1924,20 @@ function canHearPlayer(guard) {
 function restartGame() {
     console.log('Game over! Restarting...');
     
-    // Stop footstep sound
-    if (footstepSound && footstepSound.isPlaying) {
+    // Stop ALL sounds immediately (including any ongoing tweens)
+    if (sceneReference && sceneReference.sound) {
+        sceneReference.sound.stopAll();
+    }
+    
+    // Kill all active tweens (especially footstep fade-out tweens)
+    if (sceneReference && sceneReference.tweens) {
+        sceneReference.tweens.killAll();
+    }
+    
+    // Stop footstep sound explicitly
+    if (footstepSound) {
         footstepSound.stop();
+        footstepSound.setVolume(0.3);  // Reset volume
     }
     isPlayerMoving = false;
     
@@ -2552,6 +2563,11 @@ function updateConnectionPuzzle() {
         console.log('💀 Part 2 FAILED! Time expired.');
         gameOver = true;
         
+        // Stop all tweens immediately (including footstep fade-outs)
+        if (sceneReference && sceneReference.tweens) {
+            sceneReference.tweens.killAll();
+        }
+        
         if (footstepSound && footstepSound.isPlaying) {
             footstepSound.stop();
         }
@@ -2795,6 +2811,11 @@ function update() {
         return;
     }
     
+    // Don't process game logic if game is over
+    if (gameOver) {
+        return;
+    }
+    
     // Reset player velocity
     player.setVelocity(0);
     
@@ -2978,6 +2999,10 @@ function update() {
                     gameOver = true;
                     console.log('💀 CAUGHT BY LEVEL 3 GUARD! Restarting in 1 second...');
                     
+                    // Stop all sounds and tweens immediately
+                    if (sceneReference && sceneReference.tweens) {
+                        sceneReference.tweens.killAll();
+                    }
                     if (footstepSound && footstepSound.isPlaying) {
                         footstepSound.stop();
                     }
@@ -3016,6 +3041,11 @@ function update() {
                 console.log('beepWarningSound exists:', !!beepWarningSound);
                 console.log('heySound exists:', !!heySound);
                 console.log('Audio context state:', sceneReference.sound.context ? sceneReference.sound.context.state : 'no context');
+                
+                // Stop all tweens immediately (including footstep fade-outs)
+                if (sceneReference && sceneReference.tweens) {
+                    sceneReference.tweens.killAll();
+                }
                 
                 // Stop footstep sound immediately
                 if (footstepSound && footstepSound.isPlaying) {
@@ -4001,6 +4031,11 @@ function miniGameFailed() {
     console.log('Current level:', currentLevel);
     console.log('beepWarningSound exists:', !!beepWarningSound);
     console.log('heySound exists:', !!heySound);
+    
+    // Stop all tweens immediately (including footstep fade-outs)
+    if (sceneReference && sceneReference.tweens) {
+        sceneReference.tweens.killAll();
+    }
     
     // Stop footstep sound immediately
     if (footstepSound && footstepSound.isPlaying) {
