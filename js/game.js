@@ -847,6 +847,8 @@ function create() {
     }
     
     // DEBUG: Add keyboard shortcuts for level switching
+    // DISABLED FOR PRODUCTION DEPLOY
+    /*
     if (DEBUG_MODE) {
         this.input.keyboard.on('keydown-ONE', () => {
             console.log('🐛 DEBUG: Switching to Level 1');
@@ -992,6 +994,7 @@ function create() {
         console.log('   Press P = Complete Part 2 connections');
         console.log('   Press V = Victory Screen');
     }
+    */
     
     // Create energy bar graphic (rendered below player)
     energyBar = this.add.graphics();
